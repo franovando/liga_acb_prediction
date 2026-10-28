@@ -151,21 +151,22 @@ agregar_temporada_anterior <- function(df) {
               by = c("temporada", "equipo_visitante"))
 }
 
-# Fuerza previa de cada equipo: cómo viene en la fase regular de la temporada,
-# con los partidos anteriores al que se predice. Los de playoffs no cuentan: en
-# un partido de playoffs, la fuerza es la de toda la fase regular.
+# Fuerza previa de cada equipo: cómo viene en sus últimos 34 partidos de fase
+# regular (lo que dura una fase regular), contando los de la temporada
+# anterior. Sólo partidos anteriores al que se predice; los de playoffs no
+# cuentan, así que en un partido de playoffs la fuerza es la de la fase regular
+# que acaba de terminar.
 #   fuerza_margen    : por cuánto gana en promedio (margen medio)
 #   fuerza_victorias : qué proporción de partidos gana
-# Arranca desde la fase regular de la temporada anterior, que vale
-# PARTIDOS_ANTERIOR partidos, así que al principio pesa la anterior y después
-# la actual:
-#   fuerza = (suma de los partidos previos + 17 · valor de la anterior) / (partidos previos + 17)
-# Un recién ascendido arranca con 0,35 de victorias y −5 de margen (los cinco
-# del train promediaron 0,335 y −4,65). Sin descontar la localía: con el
+# Con n partidos jugados en la temporada, son esos n más los últimos 34 − n de
+# la anterior; en la 2021-22, lo que falta vale lo que el equipo hizo en la
+# 2020-21 (RECORD_2020). Un recién ascendido no tiene temporada anterior en la
+# ACB: cada partido que le falta vale lo que hicieron en la temporada anterior
+# los cinco peores equipos por margen medio. Así no se usa nada que no se
+# supiera antes de empezar la temporada. Sin descontar la localía: con el
 # calendario casi alternado, no cambia nada.
-PARTIDOS_ANTERIOR <- 17
-ASCENDIDO_VICTORIAS <- 0.35
-ASCENDIDO_MARGEN <- -5
+PARTIDOS_FUERZA <- 34
+PEORES_ASCENDIDO <- 5
 
 agregar_fuerza <- function(df) {
   largo <- bind_rows(
@@ -175,10 +176,35 @@ agregar_fuerza <- function(df) {
     df %>% transmute(id_match, fecha, temporada, es_playoff, rol = "visita",
                      equipo = equipo_visitante, gano = 1L - victoria_local,
                      margen = -dif_puntos_final)
-  )
+  ) %>%
+    mutate(regular = as.integer(es_playoff == 0)) %>%
+    arrange(equipo, fecha, id_match) %>%
+    group_by(equipo, temporada) %>%
+    mutate(
+      previos   = cumsum(regular) - regular,
+      victorias = cumsum(gano * regular) - gano * regular,
+      margenes  = cumsum(margen * regular) - margen * regular
+    ) %>%
+    ungroup()
 
-  anterior <- largo %>%
-    filter(es_playoff == 0) %>%
+  # Lo que suman los últimos 34 − n partidos de cada fase regular, para cada n
+  # de 0 a 34: el total menos los primeros n. Va con la temporada siguiente,
+  # que es donde se usa.
+  resto_anterior <- largo %>%
+    filter(regular == 1) %>%
+    transmute(equipo, temporada, previos = previos + 1L,
+              victorias = victorias + gano, margenes = margenes + margen) %>%
+    bind_rows(distinct(largo, equipo, temporada) %>%
+                mutate(previos = 0L, victorias = 0, margenes = 0)) %>%
+    group_by(equipo, temporada) %>%
+    mutate(victorias_resto = last(victorias, order_by = previos) - victorias,
+           margenes_resto  = last(margenes, order_by = previos) - margenes) %>%
+    ungroup() %>%
+    transmute(equipo, temporada = temporada + 1L, previos, victorias_resto, margenes_resto)
+
+  # La fase regular de cada equipo y temporada, con la 2020-21 de RECORD_2020.
+  por_temporada <- largo %>%
+    filter(regular == 1) %>%
     group_by(equipo, temporada) %>%
     summarise(victorias_ant = mean(gano), margen_ant = mean(margen), .groups = "drop") %>%
     bind_rows(RECORD_2020 %>% transmute(
@@ -187,23 +213,26 @@ agregar_fuerza <- function(df) {
       margen_ant    = (puntos_favor - puntos_contra) / (victorias + derrotas))) %>%
     mutate(temporada = temporada + 1L)
 
+  # Los cinco peores de la temporada anterior, por margen medio.
+  ascendido <- por_temporada %>%
+    group_by(temporada) %>%
+    slice_min(margen_ant, n = PEORES_ASCENDIDO, with_ties = FALSE) %>%
+    summarise(victorias_ascendido = mean(victorias_ant),
+              margen_ascendido    = mean(margen_ant), .groups = "drop")
+
   fuerza <- largo %>%
-    left_join(anterior, by = c("equipo", "temporada")) %>%
-    mutate(victorias_ant = coalesce(victorias_ant, ASCENDIDO_VICTORIAS),
-           margen_ant    = coalesce(margen_ant, ASCENDIDO_MARGEN),
-           regular       = as.integer(es_playoff == 0)) %>%
-    arrange(equipo, fecha, id_match) %>%
-    group_by(equipo, temporada) %>%
+    left_join(resto_anterior, by = c("equipo", "temporada", "previos")) %>%
+    left_join(por_temporada, by = c("equipo", "temporada")) %>%
+    left_join(ascendido, by = "temporada") %>%
     mutate(
-      previos   = cumsum(regular) - regular,
-      victorias = cumsum(gano * regular) - gano * regular,
-      margenes  = cumsum(margen * regular) - margen * regular,
-      fuerza_victorias = (victorias + PARTIDOS_ANTERIOR * victorias_ant) /
-        (previos + PARTIDOS_ANTERIOR),
-      fuerza_margen    = (margenes + PARTIDOS_ANTERIOR * margen_ant) /
-        (previos + PARTIDOS_ANTERIOR)
+      faltan = PARTIDOS_FUERZA - previos,
+      victorias_resto = coalesce(victorias_resto,
+                                 faltan * coalesce(victorias_ant, victorias_ascendido)),
+      margenes_resto  = coalesce(margenes_resto,
+                                 faltan * coalesce(margen_ant, margen_ascendido)),
+      fuerza_victorias = (victorias + victorias_resto) / PARTIDOS_FUERZA,
+      fuerza_margen    = (margenes + margenes_resto) / PARTIDOS_FUERZA
     ) %>%
-    ungroup() %>%
     select(id_match, rol, fuerza_margen, fuerza_victorias) %>%
     pivot_wider(names_from = rol, values_from = c(fuerza_margen, fuerza_victorias),
                 names_glue = "{.value}_{rol}", names_sort = TRUE)

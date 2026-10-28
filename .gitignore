@@ -34,8 +34,16 @@ __marimo__/
 # El repo lleva sólo código. Quien lo clone reproduce todo desde cero:
 # `Rscript pipeline.R` arma datos/ y los notebooks de modelos/ escriben
 # predicciones/ y modelos/informes/.
-datos/
-predicciones/
+# Las carpetas sí van, vacías, con un .gitkeep cada una, para que se vea la
+# estructura (los scripts las crean igual si no están). Por eso se ignora el
+# contenido y no la carpeta: si se ignora la carpeta, Git no entra a buscar
+# el .gitkeep.
+datos/**
+!datos/**/
+!datos/**/.gitkeep
+predicciones/**
+!predicciones/**/
+!predicciones/**/.gitkeep
 
 *.rds
 

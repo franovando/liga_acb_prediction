@@ -21,7 +21,7 @@ Arma las variables que ven los modelos:
 - la diferencia y el total de puntos al corte, y la diferencia al final del 1er cuarto;
 - el box score y los cuatro factores de Dean Oliver de cada equipo;
 - la fase del torneo, los partidos jugados y el porcentaje de victorias de la temporada anterior;
-- la fuerza previa de cada equipo: el margen medio y la proporción de victorias de la temporada hasta el partido anterior, arrancando desde la temporada anterior.
+- la fuerza previa de cada equipo: el margen medio y la proporción de victorias en sus últimos 34 partidos de fase regular, contando los de la temporada anterior.
 
 También unifica los nombres de los equipos, que cambian con cada sponsor.
 
