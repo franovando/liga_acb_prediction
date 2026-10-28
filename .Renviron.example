@@ -1,0 +1,11 @@
+# Copiá este archivo a .Renviron (mismo directorio) y completá los valores
+# reales.
+#
+# TABPFN_TOKEN: token de la cuenta de PriorLabs.
+# TABPFN_MODEL: nombre del checkpoint de TabPFN a usar.
+# ACB_TOKEN: token bearer de la API de la ACB (api2.acb.com), usado en
+#   etl/config/seasons.R. Sin el prefijo "Bearer " — el código lo agrega.
+
+TABPFN_TOKEN = tu_token_de_priorlabs_aca
+TABPFN_MODEL = tabpfn-v3.5-20260909.safetensors
+ACB_TOKEN = tu_token_de_la_api_de_la_acb_aca

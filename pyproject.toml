@@ -1,0 +1,49 @@
+# ==============================================================================
+# Dependencias de Python de la tesina
+# ==============================================================================
+# R arma los datos (scraping, box scores, matriz de features y split); Python
+# modela, en notebooks de marimo. Los notebooks leen datos/matrices/, que deja
+# pipeline.R, así que acá no hay nada de preparación de datos.
+#
+#   uv sync                     # marimo, polars, statsmodels, jinja2, FLAML, xgboost, lightgbm, altair
+#   uv sync --extra tabpfn      # agrega TabPFN (pesado: se trae torch)
+#   uv run playwright install chromium   # el navegador con que cuotas/capturar.py lee Jugadón
+#   uv run marimo edit modelos/codigo/01_modelos_base.py
+#
+# Versiones con las que se probó el flujo: marimo 0.24.2, polars 2.0,
+# statsmodels 0.15.0, pandas 3.0, scikit-learn 1.8.0.
+# ==============================================================================
+
+[project]
+name = "tesina-acb"
+version = "0.1.0"
+description = "Predicción de partidos de la Liga ACB desde un corte del partido"
+requires-python = ">=3.10"
+
+dependencies = [
+    # [pandas] suma pyarrow, con el que polars les pasa los datos a statsmodels y FLAML
+    "polars[pandas]>=2.0",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "flaml[automl]>=2.3",
+    "xgboost>=2.0",
+    "lightgbm>=4.0",
+    "joblib>=1.3",
+    "marimo>=0.24.2",
+    "statsmodels>=0.15.0",
+    "jinja2>=3.1",
+    "playwright>=1.48",
+    # gráficos de los notebooks: es lo que usa polars para graficar (df.plot)
+    "altair>=5.4",
+]
+
+# TabPFN va aparte porque arrastra torch: quien sólo quiera correr el modelo de
+# árboles no tiene por qué bajarse un par de GB.
+[project.optional-dependencies]
+tabpfn = ["tabpfn>=2.0"]
+
+# No es un paquete instalable, es un repo de scripts. Sin esto uv intenta
+# construirlo y falla.
+[tool.uv]
+package = false

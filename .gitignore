@@ -1,0 +1,60 @@
+# ==============================================================================
+# Credenciales — lo primero, para que no se escape nunca
+# ==============================================================================
+.Renviron
+.env
+*.token
+!.Renviron.example
+
+# ==============================================================================
+# R / RStudio
+# ==============================================================================
+.Rhistory
+.RData
+.RDataTmp
+.Ruserdata
+.Rproj.user/
+
+# ==============================================================================
+# Python
+# ==============================================================================
+.venv/
+__pycache__/
+*.pyc
+
+# marimo guarda al lado de cada notebook, en __marimo__/session/, las salidas
+# de la última corrida (para mostrarlas al reabrirlo sin volver a correr). Es
+# caché: el notebook es el .py, y lo que importa de cada corrida son las
+# predicciones en predicciones/.
+__marimo__/
+
+# ==============================================================================
+# Datos y resultados: nada se versiona
+# ==============================================================================
+# El repo lleva sólo código. Quien lo clone reproduce todo desde cero:
+# `Rscript pipeline.R` arma datos/ y los notebooks de modelos/ escriben
+# predicciones/ y modelos/informes/.
+datos/
+predicciones/
+
+*.rds
+
+# ==============================================================================
+# Salidas HTML (marimo export html) y restos de Quarto
+# ==============================================================================
+/.quarto/
+*_files/
+*.html
+!docs/*.html
+
+# ==============================================================================
+# Notas de trabajo: quedan en la compu, no se publican
+# ==============================================================================
+/CLAUDE.md
+/CONTEXTO_TESINA.md
+
+# ==============================================================================
+# Sistema
+# ==============================================================================
+.DS_Store
+Thumbs.db
