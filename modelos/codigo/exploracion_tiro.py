@@ -31,6 +31,8 @@ def _(mo):
     1. **Poder predictivo de la diferencia al 2C**, sobre la victoria del local
        (`victoria_local`) y sobre la diferencia final (`dif_puntos_final`).
     2. **La diferencia al 2C y las estadísticas avanzadas de tiro.**
+    3. **La variable respuesta**: cómo se distribuye la diferencia final y cómo
+       se reparten los puntos de cada equipo entre los dos tiempos.
 
     **Sólo el train** (temporadas 2021-22 a 2023-24). La validación y el test no
     se miran: si algo de acá termina en un modelo, ese modelo se compara en la
@@ -348,6 +350,162 @@ def _(alt, metricas, pl, tiro):
         .facet(facet=alt.Facet("metrica:N", title=None,
                                sort=[f"dif_{_m}" for _m in metricas]), columns=3)
         .resolve_scale(x="independent")
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 3. La variable respuesta
+
+    Cómo se distribuye la diferencia final (`dif_puntos_final`, local −
+    visita) y cómo se reparten los puntos de cada equipo entre los dos
+    tiempos. Sólo gráficos, sobre el train.
+    """)
+    return
+
+
+@app.cell
+def _(pl, train):
+    # Puntos de cada equipo en el partido entero, en el 1er tiempo (hasta el 2C)
+    # y en el 2do tiempo (con prórroga), y la diferencia al final del tiempo
+    # reglamentario: 0 en los partidos que fueron a prórroga.
+    respuesta = train.with_columns(
+        puntos_local=(pl.col("total_puntos_final") + pl.col("dif_puntos_final")) // 2,
+        puntos_visita=(pl.col("total_puntos_final") - pl.col("dif_puntos_final")) // 2,
+        puntos_1T_local=(pl.col("total_puntos_Q2") + pl.col("dif_puntos_Q2")) // 2,
+        puntos_1T_visita=(pl.col("total_puntos_Q2") - pl.col("dif_puntos_Q2")) // 2,
+        dif_reglamentaria=pl.when(pl.col("prorroga") == 1).then(0)
+        .otherwise(pl.col("dif_puntos_final")),
+        partido=pl.when(pl.col("prorroga") == 1).then(pl.lit("con prórroga"))
+        .otherwise(pl.lit("sin prórroga")),
+    ).with_columns(
+        puntos_2T_local=pl.col("puntos_local") - pl.col("puntos_1T_local"),
+        puntos_2T_visita=pl.col("puntos_visita") - pl.col("puntos_1T_visita"),
+    )
+    return (respuesta,)
+
+
+@app.cell
+def _(mo, respuesta):
+    mo.md(f"""
+    ### Diferencia final
+
+    De a un punto. En otro color, los {int(respuesta['prorroga'].sum())}
+    partidos que fueron a prórroga.
+    """)
+    return
+
+
+@app.cell
+def _(alt, respuesta):
+    alt.Chart(respuesta).mark_bar().encode(
+        x=alt.X("dif_puntos_final:Q", bin=alt.Bin(step=1),
+                title="Diferencia final (local − visita)"),
+        y=alt.Y("count():Q", title="Partidos"),
+        color=alt.Color("partido:N", title=None,
+                        scale=alt.Scale(domain=["sin prórroga", "con prórroga"])),
+    ).properties(width=520, height=320)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ### Diferencia al final del tiempo reglamentario
+
+    La misma distribución si los partidos que fueron a prórroga se cuentan con
+    la diferencia al final del 4° cuarto, que es 0.
+    """)
+    return
+
+
+@app.cell
+def _(alt, respuesta):
+    alt.Chart(respuesta).mark_bar().encode(
+        x=alt.X("dif_reglamentaria:Q", bin=alt.Bin(step=1),
+                title="Diferencia al final del 4° cuarto (local − visita)"),
+        y=alt.Y("count():Q", title="Partidos"),
+        color=alt.Color("partido:N", title=None,
+                        scale=alt.Scale(domain=["sin prórroga", "con prórroga"])),
+    ).properties(width=520, height=320)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ### Margen del 2do tiempo
+
+    Lo que se juega después del descanso, con prórroga: `margen_2T` =
+    `dif_puntos_final` − `dif_puntos_Q2`. Histograma de a un punto y gráfico
+    Q-Q contra la normal: si `margen_2T` fuera normal, los puntos caerían sobre
+    la recta.
+    """)
+    return
+
+
+@app.cell
+def _(alt, respuesta):
+    alt.Chart(respuesta).mark_bar().encode(
+        x=alt.X("margen_2T:Q", bin=alt.Bin(step=1),
+                title="Margen del 2do tiempo, con prórroga (local − visita)"),
+        y=alt.Y("count():Q", title="Partidos"),
+    ).properties(width=520, height=320)
+    return
+
+
+@app.cell
+def _(alt, np, pl, respuesta, stats):
+    # Q-Q normal: margen_2T estandarizado y ordenado contra los cuantiles de una
+    # normal estándar
+    _x = np.sort(respuesta["margen_2T"].to_numpy())
+    _qq = pl.DataFrame({
+        "normal": stats.norm.ppf((np.arange(1, len(_x) + 1) - 0.5) / len(_x)),
+        "margen_2T": (_x - _x.mean()) / _x.std(ddof=1),
+    })
+    _puntos = alt.Chart(_qq).mark_circle(opacity=0.4, size=15).encode(
+        x=alt.X("normal:Q", title="Cuantiles de la normal estándar"),
+        y=alt.Y("margen_2T:Q", title="Cuantiles de margen_2T estandarizado"),
+    )
+    _recta = alt.Chart(pl.DataFrame({
+        "x": [_qq["normal"].min(), _qq["normal"].max()],
+        "y": [_qq["normal"].min(), _qq["normal"].max()],
+    })).mark_line(strokeDash=[4, 4]).encode(x="x:Q", y="y:Q")
+    (_puntos + _recta).properties(width=360, height=360)
+    return
+
+
+@app.cell
+def _(mo, pl, respuesta):
+    _r = [respuesta.select(pl.corr(f"puntos{_s}_local", f"puntos{_s}_visita")).item()
+          for _s in ["", "_1T", "_2T"]]
+    mo.md(f"""
+    ### Puntos del local contra puntos de la visita
+
+    En el partido entero, en el 1er tiempo y en el 2do tiempo (con prórroga).
+    Correlación: {_r[0]:.3f}, {_r[1]:.3f} y {_r[2]:.3f}.
+    """)
+    return
+
+
+@app.cell
+def _(alt, pl, respuesta):
+    _largo = pl.concat([
+        respuesta.select(parte=pl.lit(_p), local=pl.col(f"puntos{_s}_local"),
+                         visita=pl.col(f"puntos{_s}_visita"))
+        for _p, _s in [("Partido entero", ""), ("1er tiempo", "_1T"), ("2do tiempo", "_2T")]
+    ])
+    (
+        alt.Chart(_largo).mark_circle(opacity=0.25, size=20).encode(
+            x=alt.X("local:Q", title="Puntos del local", scale=alt.Scale(zero=False)),
+            y=alt.Y("visita:Q", title="Puntos de la visita", scale=alt.Scale(zero=False)),
+        )
+        .properties(width=170, height=170)
+        .facet(facet=alt.Facet("parte:N", title=None,
+                               sort=["Partido entero", "1er tiempo", "2do tiempo"]), columns=3)
+        .resolve_scale(x="independent", y="independent")
     )
     return
 
