@@ -387,6 +387,14 @@ def main():
             return
         if "jugadon" in casas and nuevos:
             emparejar_jugadon(nuevos)
+        # Para diagnosticar fin_3C perdidos: el reloj en cada mirada desde el 3er
+        # cuarto hasta que se captura el fin_3C
+        for p in partidos:
+            reloj = p.get("liveData", {}).get("matchClock", {})
+            segundos = 60 * reloj.get("minute", 0) + reloj.get("second", 0)
+            if segundos > 1200 and ("betwarrior", p["event"]["id"], "fin_3C") not in capturados:
+                print(f"{hora()}  {nombre(p)}: reloj en {segundos // 60}:{segundos % 60:02d}, "
+                      f"{'corriendo' if reloj.get('running', True) else 'parado'}")
 
         a_capturar = [(p, c) for p in partidos if (c := que_capturar(p, ahora, inicio_pausa))]
         pendiente = False
@@ -410,7 +418,7 @@ def main():
                     estado = "guardada" if abierto else "guardada con el ganador suspendido"
                 else:
                     pendiente = True
-                    estado = "ganador suspendido, se reintenta"
+                    estado = "ganador suspendido, se reintenta" if filas else "sin mercados, se reintenta"
                 print(f"{hora()}  {nombre(p)}, {captura}, {casa}: {estado}")
 
         miradas = [m for p in partidos if (m := proxima_mirada(p, ahora, inicio_pausa)) is not None]
