@@ -16,7 +16,7 @@ Las funciones que usan todos los notebooks:
 
 ## 01_modelos_base.py · Modelos base
 
-Las reglas a superar. Primero las que no miran el partido: siempre gana el local (MB0) y gana el mejor posicionado en la temporada anterior (MB1). Después las que usan el corte: gana el que va ganando (MB2) y gana el de mejor puntaje de los cuatro factores de Oliver (MB3).
+Las reglas a superar. Primero las que no miran el partido: siempre gana el local (MB0) y gana el mejor posicionado, el de mayor proporción de victorias en sus últimos 34 partidos de fase regular (MB1). Después las que usan el corte: gana el que va ganando (MB2), gana el de mejor puntaje de los cuatro factores de Oliver (MB3) y la votación de MB0, MB1 y MB2 (MB4).
 
 ## 02_logistica.py · Regresión logística
 

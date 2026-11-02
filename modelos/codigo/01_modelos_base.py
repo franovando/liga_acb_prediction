@@ -24,9 +24,13 @@ def _(mo):
     Primero los que no miran el partido:
 
     - **MB0**: siempre gana el local.
-    - **MB1**: gana el mejor posicionado, el de mejor porcentaje de victorias
-      en la fase regular de la temporada anterior; un recién ascendido cuenta
-      como el peor. Si hay empate, el local.
+    - **MB1**: gana el mejor posicionado, el de mayor proporción de victorias
+      en sus últimos 34 partidos de fase regular (una fase regular entera),
+      contando los de la temporada anterior mientras no haya 34 en la actual.
+      Es la fuerza previa por victorias de `etl/05_datos.R`
+      (`fuerza_victorias`): a un recién ascendido, cada partido que le falta
+      le vale lo de los cinco peores de la temporada anterior. Si hay empate,
+      el local.
 
     Después los que usan lo que pasó hasta el corte:
 
@@ -37,6 +41,9 @@ def _(mo):
       pérdidas restan). Gana el de puntaje mayor; si hay empate, el local.
       Comparar los dos puntajes ya incluye la defensa: los factores de la
       visita son los factores defensivos del local.
+    - **MB4**: votación de MB0, MB1 y MB2: gana el local si lo dan ganador al
+      menos dos de los tres. Como MB0 vota siempre local, es lo mismo que
+      "gana el local si va ganando al corte o si es el mejor posicionado".
 
     El corte es el final del 2do cuarto: la diferencia al corte es
     `dif_puntos_Q2`.
@@ -73,11 +80,14 @@ def _(pl, valid_2c):
                        + 0.20 * pl.col("visita_orb") + 0.15 * pl.col("visita_ftr"))
     pred_2c = valid_2c.select(
         MB0_siempre_local=pl.lit(True),
-        # MB1: el recién ascendido (sin temporada anterior, null) cuenta como 0
-        MB1_mejor_posicionado=(pl.col("pct_victorias_anterior_local").fill_null(0)
-                               >= pl.col("pct_victorias_anterior_visita").fill_null(0)),
+        MB1_mejor_posicionado=pl.col("fuerza_victorias_local") >= pl.col("fuerza_victorias_visita"),
         MB2_lider=pl.col("dif_puntos_Q2") >= 0,
         MB3_cuatro_factores=_puntaje_local >= _puntaje_visita,
+    ).with_columns(
+        # MB4: al menos dos de MB0, MB1 y MB2 dan ganador al local
+        MB4_votacion=(pl.col("MB0_siempre_local").cast(pl.Int8)
+                      + pl.col("MB1_mejor_posicionado").cast(pl.Int8)
+                      + pl.col("MB2_lider").cast(pl.Int8)) >= 2,
     )
     return (pred_2c,)
 
@@ -101,9 +111,10 @@ def _(pred_2c, tesina, valid_2c):
     )
     tesina.guardar_predicciones(
         "MB1_mejor_posicionado", 2, valid_2c, pred_2c["MB1_mejor_posicionado"],
-        notas="Gana el de mejor porcentaje de victorias en la fase regular de la "
-              "temporada anterior; recién ascendido cuenta como 0; empate va al local. "
-              "Variables: pct_victorias_anterior_local, pct_victorias_anterior_visita.",
+        notas="Gana el de mayor proporción de victorias en sus últimos 34 partidos "
+              "de fase regular, contando los de la temporada anterior (fuerza previa "
+              "por victorias de etl/05_datos.R); empate va al local. Variables: "
+              "fuerza_victorias_local, fuerza_victorias_visita.",
     )
     tesina.guardar_predicciones(
         "MB2_lider", 2, valid_2c, pred_2c["MB2_lider"],
@@ -116,6 +127,13 @@ def _(pred_2c, tesina, valid_2c):
               "acumulados hasta el corte; empate va al local. Variables: local_efg, "
               "local_tov, local_orb, local_ftr, visita_efg, visita_tov, visita_orb, "
               "visita_ftr.",
+    )
+    tesina.guardar_predicciones(
+        "MB4_votacion", 2, valid_2c, pred_2c["MB4_votacion"],
+        notas="Votación de MB0, MB1 y MB2: gana el local si lo dan ganador al menos "
+              "dos de los tres, o sea, si va ganando al corte o si es el mejor "
+              "posicionado (MB0 vota siempre local). Variables: dif_puntos_Q2, "
+              "fuerza_victorias_local, fuerza_victorias_visita.",
     )
     return
 
