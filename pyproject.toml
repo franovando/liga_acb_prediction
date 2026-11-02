@@ -47,3 +47,8 @@ tabpfn = ["tabpfn>=2.0"]
 # construirlo y falla.
 [tool.uv]
 package = false
+
+# Tema oscuro en todos los notebooks: marimo edit, marimo run y los HTML que
+# deja marimo export html. Los gráficos de altair lo toman solos.
+[tool.marimo.display]
+theme = "dark"
