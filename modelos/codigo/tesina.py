@@ -34,7 +34,8 @@ def cargar_split(corte):
     """Train, validación y test del corte pedido, tal como los exportó
     R (etl/06_split.R), ordenados por fecha. Columnas: id_match, fecha,
     temporada, jornada, victoria_local (1 = ganó el local), dif_puntos_final,
-    y después las features. Los NA de R quedan como null.
+    total_puntos_final, prorroga (1 = hubo prórroga), y después las features.
+    Los NA de R quedan como null.
     """
     # Sin infer_schema_length=None, polars adivina los tipos con las primeras
     # 100 filas y toma jornada ("1", "2", ..., "Cuartos (1º)") como entero. Sin

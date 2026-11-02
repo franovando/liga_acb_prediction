@@ -47,13 +47,15 @@ describir_split <- function(sp) {
 
 # Lo que lee Python: datos/matrices/matriz_<corte>c.csv, una fila por partido,
 # ordenadas por fecha. Primero id_match, fecha, temporada, jornada, conjunto
-# ("train", "validacion" o "test"), victoria_local (1 = ganó el local) y
-# dif_puntos_final; después todas las features de construir_features().
+# ("train", "validacion" o "test"), victoria_local (1 = ganó el local),
+# dif_puntos_final, total_puntos_final y prorroga (1 = hubo prórroga); después
+# todas las features de construir_features().
 exportar_split <- function(sp) {
   armar <- function(d, conjunto) {
     bind_cols(
       d %>% transmute(id_match, fecha = format(fecha), temporada, jornada,
-                      conjunto = conjunto, victoria_local, dif_puntos_final),
+                      conjunto = conjunto, victoria_local, dif_puntos_final,
+                      total_puntos_final, prorroga),
       construir_features(d)
     )
   }
@@ -66,6 +68,6 @@ exportar_split <- function(sp) {
 
   message("Exportado ", archivo, ": ", nrow(sp$train), " train + ",
           nrow(sp$validacion), " validación + ", nrow(sp$test), " test, ",
-          ncol(m) - 7L, " features")
+          ncol(m) - 9L, " features")
   invisible(archivo)
 }

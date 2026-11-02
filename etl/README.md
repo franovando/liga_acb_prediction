@@ -12,7 +12,7 @@ Junta los partidos de cada temporada y crea las columnas de eventos de box score
 
 ## 04_box_score.R · Box score al corte
 
-Pasa del play-by-play a una fila por partido, con todo acumulado **hasta el final del cuarto de corte**, más la diferencia de puntos al cierre de cada cuarto. El marcador de cada cuarto se toma del último evento según el orden de la jugada, porque la ACB a veces carga marcadores erróneos en el medio.
+Pasa del play-by-play a una fila por partido, con todo acumulado **hasta el final del cuarto de corte**, más la diferencia de puntos al cierre de cada cuarto. Del final del partido lleva sólo lo que hay que predecir o describir (si ganó el local, la diferencia final, el total de puntos final y si hubo prórroga), que nunca entra como predictor. El marcador de cada cuarto se toma del último evento según el orden de la jugada, porque la ACB a veces carga marcadores erróneos en el medio.
 
 ## 05_datos.R · Matriz de features
 

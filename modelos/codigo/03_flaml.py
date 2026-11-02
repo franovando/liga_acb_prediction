@@ -70,9 +70,11 @@ def _():
     MAX_ITER = 500
     ESTIMADORES = ["xgboost", "lgbm", "rf"]
 
-    # Lo que no es variable del modelo: identificadores, los dos targets y los equipos
+    # Lo que no es variable del modelo: identificadores, los dos targets, lo que
+    # mira el final del partido (total de puntos y prórroga) y los equipos
     NO_X = ["id_match", "fecha", "temporada", "jornada", "victoria_local",
-            "dif_puntos_final", "equipo_local", "equipo_visitante"]
+            "dif_puntos_final", "total_puntos_final", "prorroga",
+            "equipo_local", "equipo_visitante"]
     return ESTIMADORES, MAX_ITER, NO_X, SEMILLA
 
 

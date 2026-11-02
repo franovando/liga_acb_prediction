@@ -78,9 +78,11 @@ ETIQUETA_TEMPORADAS <- sprintf("%02d-%02d", (min(TEMPORADAS) - 1) %% 100,
 # Columnas que nunca entran en X, además de las del marcador que dependen del
 # corte (ver construir_features()). La fecha no va como predictor: con un split
 # cronológico, las fechas de validación y test caen fuera del rango del train.
+# total_puntos_final y prorroga miran el final del partido, como los targets.
 COLS_EXCLUIDAS <- c(
   "id_match", "fecha", "hora", "jornada", "temporada",
-  "victoria_local", "dif_puntos_final", "corte_cuarto"
+  "victoria_local", "dif_puntos_final", "total_puntos_final", "prorroga",
+  "corte_cuarto"
 )
 
 # partidos_jugados_local y _visita: partidos que el equipo ya jugó en la

@@ -59,7 +59,9 @@ cierres_de_cuarto <- function(datos) {
 armar_box_score <- function(pbp, corte) {
 
   # Todo sale de los eventos hasta el corte, así que no hay fuga del resto del
-  # partido. Las únicas columnas que miran el final son los dos targets.
+  # partido. Las únicas columnas que miran el final son los dos targets, el
+  # total de puntos final y la prórroga, y ninguna entra como predictor
+  # (COLS_EXCLUIDAS en 05_datos.R).
   datos <- pbp %>% filter(period <= corte)
 
   # which(local) y no local == TRUE: hay eventos sin equipo, con local = NA.
@@ -74,8 +76,15 @@ armar_box_score <- function(pbp, corte) {
       victoria_local   = as.integer(first(score_local_final) >
                                     first(score_visitor_final)),
       dif_puntos_final = first(score_local_final) - first(score_visitor_final),
+      total_puntos_final = first(score_local_final) + first(score_visitor_final),
       .groups = "drop"
     )
+
+  # Si el partido fue a prórroga (algún evento después del 4° cuarto). Sale de
+  # pbp y no de datos, que corta en el cuarto de corte.
+  prorrogas <- pbp %>%
+    group_by(id_match) %>%
+    summarise(prorroga = as.integer(max(period) > 4), .groups = "drop")
 
   cierres <- cierres_de_cuarto(datos)
 
@@ -109,6 +118,7 @@ armar_box_score <- function(pbp, corte) {
                 values_fill = 0)
 
   box <- cabecera %>%
+    inner_join(prorrogas,    by = "id_match") %>%
     inner_join(marcador,     by = "id_match") %>%
     inner_join(cronologia,   by = "id_match") %>%
     inner_join(estadisticas, by = "id_match")
@@ -117,7 +127,7 @@ armar_box_score <- function(pbp, corte) {
   box %>%
     select(
       id_match, equipo_local, equipo_visitante, jornada, fecha, hora,
-      victoria_local, dif_puntos_final,
+      victoria_local, dif_puntos_final, total_puntos_final, prorroga,
       all_of(c(col_local, col_visit, cols_cronologia)),
       all_of(paste0("local_",  names(ESTADISTICAS))),
       all_of(paste0("visita_", names(ESTADISTICAS)))
