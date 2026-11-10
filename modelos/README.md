@@ -20,7 +20,7 @@ Las reglas a superar. Primero las que no miran el partido: siempre gana el local
 
 ## 02_logistica.py · Regresión logística
 
-Una sola regresión logística. Sus variables se eligen por el método de Collett, con tests de razón de verosimilitud, entre 9 candidatas definidas de antemano y sin pares muy correlacionados: el marcador al corte, el contexto (playoffs y el promedio de partidos jugados de los dos equipos), pérdidas, rebote ofensivo y libres, y la fuerza previa por margen medio. Las pérdidas, el rebote, los libres y la fuerza entran como diferencia local − visita.
+Una sola regresión logística, con 9 variables definidas de antemano, en términos del problema, y sin selección: elegir las que dan significativas sobre los mismos datos sesga sus coeficientes. No hay pares muy correlacionados: el marcador al corte y quién ganó el 1er cuarto, el contexto (playoffs y el promedio de partidos jugados de los dos equipos), pérdidas, rebote ofensivo y libres, y la fuerza previa por margen medio. Las pérdidas, el rebote, los libres y la fuerza entran como diferencia local − visita.
 
 ## 03_flaml.py · Árboles con FLAML
 
@@ -28,7 +28,7 @@ FLAML elige, entre XGBoost, LightGBM y bosque aleatorio, la familia y los hiperp
 
 ## resultados.py · Informe
 
-Lee todas las predicciones y arma las tablas de métricas, ordenadas por log-loss: primero los modelos que no miran el partido (MB0 y MB1) y después el resto.
+Lee todas las predicciones y arma las tablas de métricas, ordenadas por log-loss: primero los modelos que no miran el partido (MB0 y MB1) y después el resto. Al final, el gráfico de calibración de los modelos que dan probabilidades: los partidos de la validación en 10 grupos de igual cantidad según la probabilidad predicha, y en cada grupo la proporción que ganó el local, contra la probabilidad media.
 
 ## exploracion_tiro.py · Exploración
 
