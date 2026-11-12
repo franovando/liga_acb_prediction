@@ -4,7 +4,7 @@ __generated_with = "0.24.2"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import altair as alt
     import marimo as mo
@@ -14,7 +14,7 @@ def _():
     return alt, mo, pl, tesina
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # Resultados
@@ -33,20 +33,22 @@ def _(mo):
 
     Las features pueden variar de un modelo a otro; cada uno dice cuáles usa en
     la columna `notas`. Cada tabla va ordenada por log-loss: lo que importa es
-    la calibración de las probabilidades, no el accuracy. Al final, el gráfico
-    de calibración de los modelos que dan probabilidades.
+    la calibración de las probabilidades, no el accuracy. Después, el gráfico
+    de calibración de los modelos que dan probabilidades y, al final, la
+    evaluación de la distribución predictiva de los modelos de la diferencia
+    de puntos final.
     """)
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     # Los modelos que no miran el partido
     ANTES_DEL_PARTIDO = ["MB0_siempre_local", "MB1_mejor_posicionado"]
     return (ANTES_DEL_PARTIDO,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ANTES_DEL_PARTIDO, mo, pl, tesina):
     _, _valid, _ = tesina.cargar_split(2)
     _resultados, _ = tesina.evaluar_corrida(2)
@@ -71,7 +73,7 @@ def _(ANTES_DEL_PARTIDO, mo, pl, tesina):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(ANTES_DEL_PARTIDO, mo, pl, tesina):
     _train, _valid, _test = tesina.cargar_split(2)
     _desde = int(_train["temporada"].min())
@@ -112,7 +114,7 @@ def _(ANTES_DEL_PARTIDO, mo, pl, tesina):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, mo, pl, tesina):
     # Calibración en la validación: los partidos se ordenan por la probabilidad
     # predicha y se parten en 10 grupos de igual cantidad. evaluar_corrida() ya
@@ -172,6 +174,75 @@ def _(alt, mo, pl, tesina):
         .with_columns(pl.col(pl.Float64).round(5)),
     ] if _grupos else [mo.md("### Calibración en la validación\n\n"
                              "_No hay predicciones con probabilidad guardadas._")])
+    return
+
+
+@app.cell(hide_code=True)
+def _(alt, mo, pl, tesina):
+    # Diferencia de puntos final: la distribución predictiva de los modelos que
+    # la guardaron con guardar_predictiva(), evaluada con evaluar_predictiva()
+    _, _valid, _ = tesina.cargar_split(2)
+    _resultados, _pit, _salteados = tesina.evaluar_predictiva(2)
+
+    _bloques = [mo.md(f"""
+    ## Diferencia de puntos final
+
+    ### Distribución predictiva en la validación
+
+    {len(_valid)} partidos, del {_valid['fecha'].min():%Y-%m-%d} al
+    {_valid['fecha'].max():%Y-%m-%d}. Sólo los modelos que dan una distribución
+    para la diferencia final (local − visita, con la prórroga incluida); su
+    probabilidad de victoria está además en las tablas de arriba, junto a los
+    demás modelos.
+
+    - `log_dens_pred`: promedio del log de la densidad predictiva en la
+      diferencia observada. Es el log-loss de una respuesta continua con el
+      signo cambiado: más alto es mejor. La tabla va ordenada por esta columna.
+    - `cobertura_50` y `cobertura_90`: proporción de partidos cuya diferencia
+      final cae en el intervalo predictivo central del 50 % y del 90 %. Con una
+      predictiva calibrada, cerca de 0,5 y 0,9; más, si es demasiado ancha, y
+      menos, si es demasiado angosta.
+    """)]
+
+    if len(_resultados):
+        _bloques.append(_resultados.sort("log_dens_pred", descending=True)
+                        .with_columns(pl.col(pl.Float64).round(5)))
+
+        # PIT: para cada partido, la proporción de simulaciones por debajo de
+        # la diferencia observada, en 10 intervalos de 0,1. Con una predictiva
+        # calibrada, cada barra tiene cerca de la décima parte de los partidos
+        # (la línea punteada)
+        _modelos = _resultados.sort("log_dens_pred", descending=True)["modelo"].to_list()
+        _barras = (alt.Chart(_pit)
+                   .mark_bar(color="#4c78a8")
+                   .encode(x=alt.X("pit:Q", bin=alt.Bin(extent=[0, 1], step=0.1), title="PIT",
+                                   axis=alt.Axis(values=[0, 0.2, 0.4, 0.6, 0.8, 1], format=".1f")),
+                           y=alt.Y("count():Q", title="Partidos"),
+                           tooltip=[alt.Tooltip("count():Q", title="Partidos")]))
+        _referencia = (alt.Chart(pl.DataFrame({"y": [len(_valid) / 10]}))
+                       .mark_rule(strokeDash=[4, 4], color="gray")
+                       .encode(y="y:Q"))
+        _bloques.append(mo.md("""
+    ### PIT
+
+    Para cada partido, la proporción de las simulaciones de la predictiva que
+    quedaron por debajo de la diferencia final observada. Si la predictiva está
+    calibrada, esos valores son uniformes entre 0 y 1: cada barra, cerca de la
+    línea punteada. Con forma de U, la predictiva es demasiado angosta; con
+    forma de joroba, demasiado ancha; inclinada hacia un lado, está corrida.
+    """))
+        _bloques.append(alt.layer(_barras, _referencia, data=_pit)
+                        .properties(width=300, height=220)
+                        .facet(facet=alt.Facet("modelo:N", title=None, sort=_modelos),
+                               columns=2))
+    else:
+        _bloques.append(mo.md("_No hay predictivas guardadas._"))
+
+    if len(_salteados):
+        _bloques.append(mo.md("**Predictivas salteadas** (no son comparables con el resto):"))
+        _bloques.append(_salteados)
+
+    mo.vstack(_bloques)
     return
 
 

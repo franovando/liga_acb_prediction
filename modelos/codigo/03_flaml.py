@@ -4,7 +4,7 @@ __generated_with = "0.24.2"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import warnings
 
@@ -22,7 +22,7 @@ def _():
     return AutoML, mo, np, pl, tesina
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # FLAML: árboles con tuneo automático
@@ -64,7 +64,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     SEMILLA = 2026
     MAX_ITER = 500
@@ -117,7 +117,7 @@ def _(np):
     return (RollingOrigin,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## Corte 2C: datos al final del 2do cuarto
@@ -125,7 +125,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(NO_X, RollingOrigin, tesina):
     # 1. Cargar. FLAML no acepta polars: X e y le llegan como pandas.
     train_2c, valid_2c, _ = tesina.cargar_split(2)
@@ -135,7 +135,7 @@ def _(NO_X, RollingOrigin, tesina):
     return X_train_2c, X_valid_2c, cv_2c, train_2c, valid_2c
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     AutoML,
     ESTIMADORES,
@@ -170,7 +170,7 @@ def _(
     return config_2c, flaml_2c
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(X_valid_2c, flaml_2c, mo, pl, tesina, valid_2c):
     # Predecir y evaluar sobre la validación
     prob_2c = flaml_2c.predict_proba(X_valid_2c)[:, 1]
@@ -189,7 +189,7 @@ def _(X_valid_2c, flaml_2c, mo, pl, tesina, valid_2c):
     return pred_2c, prob_2c, umbral_senal_2c
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     ESTIMADORES,
     MAX_ITER,

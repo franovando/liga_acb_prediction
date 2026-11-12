@@ -64,6 +64,7 @@ Después los notebooks, en este orden. FLAML tarda varios minutos, y `resultados
 uv run marimo export html modelos/codigo/01_modelos_base.py -o modelos/informes/01_modelos_base.html -f
 uv run marimo export html modelos/codigo/02_logistica.py -o modelos/informes/02_logistica.html -f
 uv run marimo export html modelos/codigo/03_flaml.py -o modelos/informes/03_flaml.html -f
+uv run marimo export html modelos/codigo/04_bayesiano.py -o modelos/informes/04_bayesiano.html -f
 uv run marimo export html modelos/codigo/resultados.py -o modelos/informes/resultados.html -f
 ```
 
@@ -94,10 +95,10 @@ liga_acb_prediction/
 │   │   ├── 01_modelos_base.py
 │   │   ├── 02_logistica.py
 │   │   ├── 03_flaml.py
+│   │   ├── 04_bayesiano.py
 │   │   ├── resultados.py
 │   │   ├── exploracion_tiro.py
-│   │   ├── 02_xgboost.py       # Versión vieja, ya no anda
-│   │   └── 03_tabpfn.py        # Versión vieja, ya no anda
+│   │   └── 02_xgboost.py       # Versión vieja, ya no anda
 │   └── informes/               # HTML exportados de los notebooks (no se versionan)
 ├── cuotas/                     # Python: captura de cuotas en vivo
 │   ├── capturar.py

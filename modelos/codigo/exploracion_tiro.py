@@ -4,7 +4,7 @@ __generated_with = "0.24.2"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import altair as alt
     import marimo as mo
@@ -18,7 +18,7 @@ def _():
     return alt, mo, np, pl, smf, stats, tesina
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # La diferencia al 2C, el resultado y el tiro
@@ -49,7 +49,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, tesina):
     # 1. Cargar: sólo el train. margen_2T es el margen del 2do tiempo (con
     # prórroga); tramo agrupa la diferencia al 2C.
@@ -70,7 +70,7 @@ def _(pl, tesina):
     return (train,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pl, train):
     _tramos = (
         train.group_by("tramo")
@@ -103,7 +103,7 @@ def _(mo, pl, train):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ### Victoria del local
@@ -116,23 +116,26 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(smf, train):
     logit_q2 = smf.logit("victoria_local ~ dif_puntos_Q2", data=train).fit(disp=0)
     return (logit_q2,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(logit_q2, mo, np, pl, tesina, train):
+    # statsmodels devuelve los coeficientes en pandas: se pasan a numpy apenas
+    # salen, en el orden de la fórmula (intercepto y pendiente)
     _prob = logit_q2.predict(train).to_numpy()
-    _ic = np.exp(logit_q2.conf_int())
+    _a, _b = logit_q2.params.to_numpy()
+    _ic = np.exp(logit_q2.conf_int().to_numpy())
     _coef = pl.DataFrame({
-        "variable": logit_q2.params.index,
-        "coef": logit_q2.params,
-        "ee": logit_q2.bse,
-        "OR": np.exp(logit_q2.params),
-        "OR_ic_inf": _ic[0],
-        "OR_ic_sup": _ic[1],
+        "variable": logit_q2.model.exog_names,
+        "coef": logit_q2.params.to_numpy(),
+        "ee": logit_q2.bse.to_numpy(),
+        "OR": np.exp(logit_q2.params.to_numpy()),
+        "OR_ic_inf": _ic[:, 0],
+        "OR_ic_sup": _ic[:, 1],
     }).with_columns(pl.col(pl.Float64).round(4))
 
     _metricas = pl.concat([
@@ -141,7 +144,7 @@ def _(logit_q2, mo, np, pl, tesina, train):
         tesina.evaluar("MB2_lider", train["victoria_local"], train["dif_puntos_Q2"] >= 0),
     ]).with_columns(pl.col(pl.Float64).round(5))
 
-    _indiferencia = -logit_q2.params["Intercept"] / logit_q2.params["dif_puntos_Q2"]
+    _indiferencia = -_a / _b
 
     mo.vstack([
         _coef,
@@ -153,7 +156,7 @@ def _(logit_q2, mo, np, pl, tesina, train):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, logit_q2, pl, train):
     # Proporción de victorias del local por diferencia exacta (el tamaño es la
     # cantidad de partidos) y la curva de la logística
@@ -174,7 +177,7 @@ def _(alt, logit_q2, pl, train):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ### Diferencia final
@@ -189,31 +192,31 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(smf, train):
     lineal_q2 = smf.ols("dif_puntos_final ~ dif_puntos_Q2", data=train).fit()
     return (lineal_q2,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(lineal_q2, mo, pl, stats):
     mo.vstack([
         pl.DataFrame({
-            "variable": lineal_q2.params.index,
-            "coef": lineal_q2.params,
-            "ee": lineal_q2.bse,
+            "variable": lineal_q2.model.exog_names,
+            "coef": lineal_q2.params.to_numpy(),
+            "ee": lineal_q2.bse.to_numpy(),
         }).with_columns(pl.col(pl.Float64).round(4)),
         pl.DataFrame([{
             "r2": lineal_q2.rsquared,
             "sigma": lineal_q2.scale ** 0.5,
-            "asimetria_resid": stats.skew(lineal_q2.resid),
-            "curtosis_exceso_resid": stats.kurtosis(lineal_q2.resid),
+            "asimetria_resid": stats.skew(lineal_q2.resid.to_numpy()),
+            "curtosis_exceso_resid": stats.kurtosis(lineal_q2.resid.to_numpy()),
         }]).with_columns(pl.col(pl.Float64).round(4)),
     ])
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, pl, train):
     # Diferencia final contra diferencia al 2C, con la recta de mínimos cuadrados.
     # Debajo de la línea punteada perdió el local.
@@ -228,7 +231,7 @@ def _(alt, pl, train):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## 2. La diferencia al 2C y las estadísticas avanzadas de tiro
@@ -254,7 +257,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, train):
     # Métricas de tiro de cada equipo
     tiro = train
@@ -284,7 +287,7 @@ def _(pl, train):
     return metricas, tiro
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(metricas, mo, pl, tiro):
     # Descriptiva: media de cada equipo y desvío de la diferencia
     _desc = pl.DataFrame([
@@ -308,7 +311,7 @@ def _(metricas, mo, pl, tiro):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(metricas, mo, pl, tiro):
     correlaciones = pl.DataFrame([
         {"metrica": f"dif_{_m}",
@@ -330,7 +333,7 @@ def _(metricas, mo, pl, tiro):
     return (correlaciones,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, metricas, pl, tiro):
     # Diferencia al 2C contra cada métrica, con su recta de mínimos cuadrados
     _largo = (
@@ -354,7 +357,7 @@ def _(alt, metricas, pl, tiro):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## 3. La variable respuesta
@@ -366,7 +369,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, train):
     # Puntos de cada equipo en el partido entero, en el 1er tiempo (hasta el 2C)
     # y en el 2do tiempo (con prórroga), y la diferencia al final del tiempo
@@ -387,7 +390,7 @@ def _(pl, train):
     return (respuesta,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, respuesta):
     mo.md(f"""
     ### Diferencia final
@@ -398,7 +401,7 @@ def _(mo, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, respuesta):
     alt.Chart(respuesta).mark_bar().encode(
         x=alt.X("dif_puntos_final:Q", bin=alt.Bin(step=1),
@@ -410,7 +413,7 @@ def _(alt, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ### Diferencia al final del tiempo reglamentario
@@ -421,7 +424,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, respuesta):
     alt.Chart(respuesta).mark_bar().encode(
         x=alt.X("dif_reglamentaria:Q", bin=alt.Bin(step=1),
@@ -433,7 +436,7 @@ def _(alt, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ### Margen del 2do tiempo
@@ -446,7 +449,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, respuesta):
     alt.Chart(respuesta).mark_bar().encode(
         x=alt.X("margen_2T:Q", bin=alt.Bin(step=1),
@@ -456,7 +459,7 @@ def _(alt, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, np, pl, respuesta, stats):
     # Q-Q normal: margen_2T estandarizado y ordenado contra los cuantiles de una
     # normal estándar
@@ -477,7 +480,7 @@ def _(alt, np, pl, respuesta, stats):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pl, respuesta):
     _r = [respuesta.select(pl.corr(f"puntos{_s}_local", f"puntos{_s}_visita")).item()
           for _s in ["", "_1T", "_2T"]]
@@ -490,7 +493,7 @@ def _(mo, pl, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(alt, pl, respuesta):
     _largo = pl.concat([
         respuesta.select(parte=pl.lit(_p), local=pl.col(f"puntos{_s}_local"),
@@ -510,17 +513,20 @@ def _(alt, pl, respuesta):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(correlaciones, lineal_q2, logit_q2, mo, np):
     _mas = correlaciones.sort("r_Q2", descending=True).row(0, named=True)
+    # Intercepto y pendiente de cada modelo, de pandas a numpy
+    _, _b_logit = logit_q2.params.to_numpy()
+    _a, _b = lineal_q2.params.to_numpy()
     mo.md(f"""
     ## Lectura
 
     - **Victoria.** Cada punto de diferencia al 2C multiplica por
-      {np.exp(logit_q2.params['dif_puntos_Q2']):.3f} los odds de
+      {np.exp(_b_logit):.3f} los odds de
       que gane el local.
     - **Diferencia final.** `dif_puntos_final` ≈
-      {lineal_q2.params['Intercept']:.2f} + {lineal_q2.params['dif_puntos_Q2']:.3f}
+      {_a:.2f} + {_b:.3f}
       · `dif_puntos_Q2`, con desvío residual {lineal_q2.scale ** 0.5:.2f}
       puntos y R² {lineal_q2.rsquared:.3f}: la diferencia al descanso se conserva
       casi entera y el 2do tiempo agrega un ruido de unos

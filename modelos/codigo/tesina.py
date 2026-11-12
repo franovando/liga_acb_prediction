@@ -10,6 +10,10 @@
 # y guarda sus predicciones con guardar_predicciones(). El informe
 # (resultados.py) las junta con evaluar_corrida().
 #
+# Los modelos de la diferencia de puntos final que dan una distribución
+# predictiva (los bayesianos) guardan además esa predictiva con
+# guardar_predictiva(), y el informe la evalúa con evaluar_predictiva().
+#
 # Los modelos se comparan en la validación. El test se usa una sola vez, para
 # el modelo elegido reajustado con train + validación:
 # guardar_predicciones(..., conjunto="test").
@@ -207,3 +211,95 @@ def evaluar_corrida(corte, conjunto="validacion"):
     resultados = pl.concat(filas) if filas else pl.DataFrame()
     return resultados, pl.DataFrame(salteados, schema=["modelo", "motivo"],
                                     orient="row")
+
+
+# ------------------------------------------------------------------------------
+# Diferencia de puntos final: guardar y evaluar la distribución predictiva
+# ------------------------------------------------------------------------------
+def guardar_predictiva(modelo, corte, datos, y_sim, log_lik, conjunto="validacion"):
+    """Deja predicciones/<corte>c/<conjunto>/sim_<modelo>.csv, en formato
+    largo: una fila por partido y simulación (id_match, sim, y_sim, log_lik).
+    Es aparte de guardar_predicciones(), que guarda la probabilidad de
+    victoria del mismo modelo, con sus notas.
+
+    datos   : los partidos predichos: exactamente los del conjunto, en orden.
+    y_sim   : matriz partidos × simulaciones: en cada columna, una diferencia
+              final simulada de la predictiva, con una muestra de la posterior.
+    log_lik : matriz partidos × simulaciones: el log de la densidad de la
+              diferencia final observada, con la misma muestra de la posterior
+              que la columna de y_sim.
+    """
+    _, validacion, test = cargar_split(corte)
+    esperado = {"validacion": validacion, "test": test}[conjunto]
+    if list(datos["id_match"]) != list(esperado["id_match"]):
+        raise ValueError(f"'datos' no son los {len(esperado)} partidos de "
+                         f"{conjunto} del corte {corte}C, en el mismo orden.")
+
+    carpeta = RAIZ / "predicciones" / f"{corte}c" / conjunto
+    carpeta.mkdir(parents=True, exist_ok=True)
+    n_partidos, n_sim = np.shape(y_sim)
+    pl.DataFrame({
+        "id_match": np.repeat(datos["id_match"].to_numpy(), n_sim),
+        "sim": np.tile(np.arange(1, n_sim + 1), n_partidos),
+        "y_sim": np.ravel(y_sim),
+        "log_lik": np.ravel(log_lik),
+    }).write_csv(carpeta / f"sim_{modelo}.csv")
+
+
+def evaluar_predictiva(corte, conjunto="validacion"):
+    """Evalúa la distribución predictiva de la diferencia final de todos los
+    predicciones/<corte>c/<conjunto>/sim_*.csv contra ese conjunto. Es la
+    ÚNICA implementación de estas métricas. Devuelve tres tablas:
+
+    resultados : una fila por modelo.
+                 log_dens_pred: promedio, sobre los partidos, del log de la
+                 densidad predictiva en la diferencia final observada,
+                 log((1/S) Σ_s p(y | θ_s)). Es el log-loss de una respuesta
+                 continua con el signo cambiado: más alto es mejor.
+                 cobertura_50 y cobertura_90: proporción de partidos cuya
+                 diferencia final cae en el intervalo predictivo central del
+                 50 % y del 90 %.
+    pit        : una fila por modelo y partido: la proporción de simulaciones
+                 por debajo de la diferencia observada. Si la predictiva está
+                 calibrada, es uniforme entre 0 y 1.
+    salteados  : los archivos que no traen exactamente los partidos del
+                 conjunto.
+    """
+    _, validacion, test = cargar_split(corte)
+    verdad = ({"validacion": validacion, "test": test}[conjunto]
+              .select("id_match", pl.col("dif_puntos_final").alias("y")))
+
+    filas, pits, salteados = [], [], []
+    for archivo in sorted((RAIZ / "predicciones" / f"{corte}c" / conjunto).glob("sim_*.csv")):
+        modelo = archivo.stem.removeprefix("sim_")
+        s = pl.read_csv(archivo)
+
+        if set(s["id_match"]) != set(verdad["id_match"]):
+            salteados.append((modelo, f"sus {s['id_match'].n_unique()} partidos no son "
+                                      f"los {len(verdad)} de {conjunto}"))
+            continue
+
+        # Por partido. El log de la densidad promedio se calcula restando el
+        # máximo antes de exponenciar, para no perder precisión.
+        por_partido = (
+            s.join(verdad, on="id_match")
+            .group_by("id_match")
+            .agg(
+                lpd=(pl.col("log_lik") - pl.col("log_lik").max()).exp().mean().log()
+                    + pl.col("log_lik").max(),
+                pit=(pl.col("y_sim") < pl.col("y")).mean(),
+                adentro_50=pl.col("y").first().is_between(pl.col("y_sim").quantile(0.25),
+                                                          pl.col("y_sim").quantile(0.75)),
+                adentro_90=pl.col("y").first().is_between(pl.col("y_sim").quantile(0.05),
+                                                          pl.col("y_sim").quantile(0.95)),
+            )
+        )
+        filas.append({"modelo": modelo,
+                      "log_dens_pred": por_partido["lpd"].mean(),
+                      "cobertura_50": por_partido["adentro_50"].mean(),
+                      "cobertura_90": por_partido["adentro_90"].mean()})
+        pits.append(por_partido.select(pl.lit(modelo).alias("modelo"), "id_match", "pit"))
+
+    return (pl.DataFrame(filas) if filas else pl.DataFrame(),
+            pl.concat(pits).sort("modelo", "id_match") if pits else pl.DataFrame(),
+            pl.DataFrame(salteados, schema=["modelo", "motivo"], orient="row"))

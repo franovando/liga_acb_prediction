@@ -4,7 +4,7 @@ __generated_with = "0.24.2"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     import polars as pl
@@ -13,7 +13,7 @@ def _():
     return mo, pl, tesina
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # Modelos base
@@ -54,7 +54,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## Corte 2C: datos al final del 2do cuarto
@@ -62,14 +62,14 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(tesina):
     # 1. Cargar. Los modelos base no se ajustan, así que sólo hace falta la validación.
     _, valid_2c, _ = tesina.cargar_split(2)
     return (valid_2c,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, valid_2c):
     # 2. Aplicar las reglas sobre la validación: una columna por modelo base,
     # True si predice que gana el local
@@ -92,7 +92,7 @@ def _(pl, valid_2c):
     return (pred_2c,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, pred_2c, tesina, valid_2c):
     # 3. Evaluar sobre la validación
     pl.concat([
@@ -102,7 +102,7 @@ def _(pl, pred_2c, tesina, valid_2c):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pred_2c, tesina, valid_2c):
     # Guardar las predicciones
     tesina.guardar_predicciones(

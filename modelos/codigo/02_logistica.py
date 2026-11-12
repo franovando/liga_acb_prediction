@@ -4,7 +4,7 @@ __generated_with = "0.24.2"
 app = marimo.App()
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import marimo as mo
     import numpy as np
@@ -17,7 +17,7 @@ def _():
     return mo, np, pl, smf, stats, tesina
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     # Regresión logística
@@ -86,15 +86,16 @@ def _(mo):
 def _(np, pl):
     def tabla_coeficientes(modelo):
         """Coeficientes de una logística de statsmodels: estimación, error
-        estándar y odds ratio con su IC 95 %."""
-        ic = np.exp(modelo.conf_int())
+        estándar y odds ratio con su IC 95 %. statsmodels los devuelve en
+        pandas: se pasan a numpy apenas salen."""
+        ic = np.exp(modelo.conf_int().to_numpy())
         return pl.DataFrame({
-            "variable": modelo.params.index,
-            "coef": modelo.params,
-            "ee": modelo.bse,
-            "OR": np.exp(modelo.params),
-            "OR_ic_inf": ic[0],
-            "OR_ic_sup": ic[1],
+            "variable": modelo.model.exog_names,
+            "coef": modelo.params.to_numpy(),
+            "ee": modelo.bse.to_numpy(),
+            "OR": np.exp(modelo.params.to_numpy()),
+            "OR_ic_inf": ic[:, 0],
+            "OR_ic_sup": ic[:, 1],
         }).with_columns(pl.col(pl.Float64).round(4))
 
     return (tabla_coeficientes,)
@@ -113,7 +114,7 @@ def _(stats):
     return (rv,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md("""
     ## Corte 2C: datos al final del 2do cuarto
@@ -121,7 +122,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(pl, tesina):
     # 1. Cargar. El ritmo se centra con la media del train, también en la
     # validación. Lo que es de cada equipo, en diferencia local − visita; los
@@ -146,7 +147,7 @@ def _(pl, tesina):
     return media_ritmo_2c, train_2c, valid_2c, variables_2c
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, pl, rv, smf, train_2c):
     # Test de simetría: las variables de cada equipo por separado contra su
     # diferencia (los partidos jugados, contra su promedio), con el marcador en
@@ -190,7 +191,7 @@ def _(mo, pl, rv, smf, train_2c):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, smf, tabla_coeficientes, train_2c, variables_2c):
     # 2. Ajustar sobre el train, con todas las variables
     formula_2c = "victoria_local ~ " + " + ".join(variables_2c)
@@ -212,7 +213,7 @@ def _(mo, smf, tabla_coeficientes, train_2c, variables_2c):
     return (logistica_2c,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(logistica_2c, mo, pl, tesina, valid_2c):
     # 3. Predecir y evaluar sobre la validación. La clase sale de un umbral de 0,5
     prob_2c = logistica_2c.predict(valid_2c).to_numpy()
@@ -231,7 +232,7 @@ def _(logistica_2c, mo, pl, tesina, valid_2c):
     return pred_2c, prob_2c, umbral_senal_2c
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(
     media_ritmo_2c,
     pred_2c,
